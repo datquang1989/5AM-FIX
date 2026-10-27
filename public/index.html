@@ -64,6 +64,15 @@ input.sc{width:58px;height:48px;font:800 26px 'Barlow Condensed';padding:0}input
 .awr{display:flex;align-items:center;gap:8px;padding:7px 4px;border-top:1px solid var(--line);cursor:pointer;border-radius:6px}.awr:hover{background:rgba(120,140,190,.12)}.awr .medal{width:24px;text-align:center}.awr .pl{flex:1;min-width:0}.awr .vl{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px}.awr .vl small{display:block;font-weight:600;color:var(--mute);font-size:11px;text-align:right}
 .aw .none{color:var(--mute);font-size:13px;padding:8px 2px}
 @media(max-width:700px){.aws{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:6px;margin:0 -14px;padding-left:14px;padding-right:14px}.aw{flex:0 0 82%;scroll-snap-align:start}}
+
+.kpis.money .big{font-size:25px;line-height:1.1}.kpis.money .kpi{padding:12px}.kpi.kf1{--kc:#5AA9FF}.kpi.kf2{--kc:#3DDC97}.kpi.kf3{--kc:#FF7A6B}.kpi.kf4{--kc:#FFB020}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border:0;background:none;color:var(--ink);font:700 14px Barlow;padding:9px 18px;cursor:pointer}.seg button.on.thu{background:var(--ok);color:#fff}.seg button.on.chi{background:#E03131;color:#fff}
+.chip.cat.thu{background:rgba(43,138,62,.16);color:var(--ok)}.chip.cat.chi{background:rgba(224,49,49,.14);color:#E03131}
+.fb{margin:10px 0}.fb.chi .bar i{background:linear-gradient(90deg,#FF8A3D,#E03131)}
+.ff{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}.ff label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}.ff input,.ff select{width:100%;font-size:16px}
+details.card summary{cursor:pointer;font-weight:700}
+.fst{font-size:12px;color:var(--mute)}.fst.err{color:#E03131;font-weight:700}
+.tbl td.n,.tbl th.n{white-space:nowrap}
 </style></head><body><div id="app"></div><div id="modal"></div>
 <script>/* Engine: logic thuần (không DOM) cho mini game 5 A.M TEAM - Random Women's Doubles.
  * Dùng được cả trong trình duyệt (window.PBEngine) và Node (require) để test. */
@@ -369,18 +378,18 @@ const TL={...TYPES.mini,...TYPES.giai,noi:'Đánh nối',wc:'WC rally',open:'Gi�
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let S=(()=>{try{const j=localStorage.getItem('p5am2');if(j)return JSON.parse(j)}catch(e){}return JSON.parse(JSON.stringify(SEED))})();
 const curMonth=()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')};
-let ui={mo:curMonth(),bx:{F:false,M:false},tab:'tong',ev:null,mem:null,draft:null,armed:null,io:''};
+let ui={role:'',fm:curMonth(),fd:null,fe:null,fa:null,fs:'',ferr:'',mo:curMonth(),bx:{F:false,M:false},tab:'tong',ev:null,mem:null,draft:null,armed:null,io:''};
 const RO=()=>ui.api&&!ui.adm;let tmr;
-const push=()=>{clearTimeout(tmr);tmr=setTimeout(()=>fetch('/api/state',{method:'POST',headers:{'x-admin':encodeURIComponent(ui.pw),'content-type':'application/json'},body:JSON.stringify(S)}).then(r=>{if(!r.ok){if(r.status==403){ui.adm=false;ui.pw='';try{sessionStorage.removeItem(PWK)}catch(e){}alert('Phiên quản trị không còn hợp lệ (mật khẩu đã đổi hoặc sai), thay đổi vừa rồi CHƯA được lưu lên máy chủ. Hãy đăng nhập lại.');pull()}ui.sync='Lỗi đồng bộ'}else ui.sync='Đã đồng bộ';render()}).catch(()=>{ui.sync='Lỗi đồng bộ';render()}),600)};
+const push=()=>{clearTimeout(tmr);tmr=setTimeout(()=>fetch('/api/state',{method:'POST',headers:{'x-admin':encodeURIComponent(ui.pw),'content-type':'application/json'},body:JSON.stringify(S)}).then(r=>{if(!r.ok){if(r.status==403){ui.adm=false;ui.role='';ui.pw='';try{sessionStorage.removeItem(PWK)}catch(e){}alert('Phiên quản trị không còn hợp lệ (mật khẩu đã đổi hoặc sai), thay đổi vừa rồi CHƯA được lưu lên máy chủ. Hãy đăng nhập lại.');pull()}ui.sync='Lỗi đồng bộ'}else ui.sync='Đã đồng bộ';render()}).catch(()=>{ui.sync='Lỗi đồng bộ';render()}),600)};
 const save=()=>{try{localStorage.setItem('p5am2',JSON.stringify(S));ui.nosave=0}catch(e){ui.nosave=1}if(ui.api&&ui.adm)push()};
 const pull=()=>fetch('/api/state',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{ui.api=true;if(j&&j.members)S=j;if(ui.ev&&!S.events.some(x=>x.id==ui.ev))ui.ev=null;ui.off=0;render()}).catch(()=>{ui.off=/^https?:/.test(location.protocol)&&!/claude/.test(location.host);render()});
 const PWK='p5am_pw';
-const chk=pw=>fetch('/api/state?check=1',{cache:'no-store',headers:{'x-admin':encodeURIComponent(pw)}}).then(r=>r.ok?r.json():'err').then(j=>j==='err'?'err':j.configured===false?'nocfg':j.ok?'ok':'bad').catch(()=>'err');
-const enter=pw=>{ui.pw=pw;ui.adm=true;ui.sync='Đã đăng nhập';try{sessionStorage.setItem(PWK,pw)}catch(e){}return pull()};
-function showLogin(){const m=$('#modal');m.innerHTML='<div class=mdl><form class=card id=lf><h3 style="margin-top:0">Đăng nhập quản trị</h3><input id=lpw type=password autocomplete=current-password placeholder="Mật khẩu quản trị" style="width:100%;box-sizing:border-box"><div id=lmsg class=neg style="margin:.6rem 0;min-height:1.3em"></div><div class=row><button class=b type=submit id=lok>Đăng nhập</button><button class="b alt" type=button id=lcx>Huỷ</button></div></form></div>';
+const chk=pw=>fetch('/api/state?check=1',{cache:'no-store',headers:{'x-admin':encodeURIComponent(pw)}}).then(r=>r.ok?r.json():'err').then(j=>j==='err'?'err':j.configured===false?'nocfg':j.ok?(j.role||'admin'):'bad').catch(()=>'err');
+const enter=(pw,role)=>{ui.pw=pw;ui.role=role;ui.adm=role=='admin';ui.sync='Đã đăng nhập';if(role=='treasurer')ui.tab='fund';try{sessionStorage.setItem(PWK,pw)}catch(e){}return role=='admin'?pull().then(pullFund):pullFund()};
+function showLogin(){const m=$('#modal');m.innerHTML='<div class=mdl><form class=card id=lf><h3 style="margin-top:0">Đăng nhập (quản trị / thủ quỹ)</h3><input id=lpw type=password autocomplete=current-password placeholder="Mật khẩu quản trị" style="width:100%;box-sizing:border-box"><div id=lmsg class=neg style="margin:.6rem 0;min-height:1.3em"></div><div class=row><button class=b type=submit id=lok>Đăng nhập</button><button class="b alt" type=button id=lcx>Huỷ</button></div></form></div>';
  const i=$('#lpw'),say=t=>{$('#lmsg').textContent=t};i.focus();$('#lcx').onclick=()=>{m.innerHTML=''};
  $('#lf').onsubmit=async e=>{e.preventDefault();const p=i.value.trim();if(!p){say('Nhập mật khẩu.');return}const b=$('#lok');b.disabled=true;say('Đang kiểm tra…');const r=await chk(p);b.disabled=false;
-  if(r=='ok'){m.innerHTML='';await enter(p)}else say(r=='bad'?'Sai mật khẩu.':r=='nocfg'?'Máy chủ chưa có biến ADMIN_PASSWORD (hoặc chưa Trigger deploy lại sau khi đặt biến).':'Không kết nối được máy chủ, thử lại sau.')}}
+  if(r=='admin'||r=='treasurer'){m.innerHTML='';await enter(p,r)}else say(r=='bad'?'Sai mật khẩu.':r=='nocfg'?'Máy chủ chưa có biến ADMIN_PASSWORD (hoặc chưa Trigger deploy lại sau khi đặt biến).':'Không kết nối được máy chủ, thử lại sau.')}}
 const MM=()=>Object.fromEntries(S.members.map(m=>[m.id,m]));
 const today=()=>new Date().toISOString().slice(0,10),fmt=d=>d?d.split('-').reverse().join('/'):'';
 const f2=x=>x.toFixed(3);
@@ -510,21 +519,99 @@ function qa(){
  <p>Tab <b>Tập luyện</b> hoạt động giống Mini Game, có thêm chọn <b>buổi sáng / chiều / tối</b> cho mỗi buổi tập. Các trận trong buổi tập vẫn được chấm trình theo công thức ở mục 3, nhưng với <b>hệ số thấp hơn</b>: <b>${KTR}</b> thay vì 0.06 (bằng một nửa Mini Game và Giải đấu chính thức), nên điểm thay đổi chậm hơn.</p>
  <div style="overflow-x:auto"><table><tr><th rowspan=2>Chênh lệch điểm TB</th><th class=n rowspan=2>Xác suất thắng của bên mạnh</th><th class=n colspan=2>Bên mạnh hơn</th><th class=n colspan=2>Bên yếu hơn</th></tr><tr><th class=n>Thắng</th><th class=n>Thua</th><th class=n>Thắng</th><th class=n>Thua</th></tr>${exR}</table></div>
  <div class="mute mt">Trong cùng một ngày, các hoạt động được tính theo thứ tự sáng, chiều, tối. Hồ sơ mỗi thành viên có thêm số buổi tập đã tham gia (chia theo sáng/chiều/tối); buổi tập "Sắp diễn ra" chưa được tính.</div></div>
- <div class=card><h3>9. "Δ trình" trong bảng xếp hạng giải là gì?</h3><p>Là tổng điểm trình người đó được cộng hoặc trừ trong riêng hoạt động đó. Số dương (màu xanh) là tăng, số âm là giảm.</p></div>`}
+ <div class=card><h3>9. "Δ trình" trong bảng xếp hạng giải là gì?</h3><p>Là tổng điểm trình người đó được cộng hoặc trừ trong riêng hoạt động đó. Số dương (màu xanh) là tăng, số âm là giảm.</p></div>
+ <div class=card><h3>10. Tab Thu/Chi tính số dư thế nào?</h3><p><b>Số dư cuối kỳ = Số dư đầu kỳ + Tổng thu − Tổng chi</b> của tháng đang xem. Số dư đầu kỳ của tháng sau tự lấy từ số dư cuối kỳ của tháng trước. Riêng tháng bắt đầu theo dõi thì thủ quỹ nhập số dư đầu kỳ ở mục "Thiết lập số dư đầu kỳ".</p><ul><li>Khoản thu: thu quỹ hội, thu tài trợ, thu khác.</li><li>Khoản chi: đặt sân, hỗ trợ giải đấu, dụng cụ, nước uống/ăn uống, chi khác.</li><li>Mọi thành viên xem được sổ thu/chi; chỉ thủ quỹ (hoặc quản trị viên) đăng nhập mới thêm, sửa, xoá được.</li></ul></div>
+ `}
+
+/* ===== Thu/Chi (quỹ team) ===== */
+let F={open:null,tx:[],rev:0};
+const normF=j=>({open:j&&j.open||null,tx:Array.isArray(j&&j.tx)?j.tx:[],rev:(j&&j.rev)||0});
+const FRO=()=>ui.api&&!ui.role;
+const pullFund=()=>fetch('/api/fund',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{F=normF(j);render()}).catch(()=>{if(!ui.api){try{const j=localStorage.getItem('p5am_fund');if(j)F=normF(JSON.parse(j))}catch(e){}render()}});
+const fsave=()=>{if(!ui.api){try{localStorage.setItem('p5am_fund',JSON.stringify(F));ui.fs='Đã lưu trên máy này'}catch(e){ui.fs='Lỗi lưu'}render();return}
+ ui.fs='Đang lưu…';render();
+ fetch('/api/fund',{method:'POST',headers:{'x-admin':encodeURIComponent(ui.pw),'content-type':'application/json'},body:JSON.stringify(F)}).then(async r=>{
+  if(r.status==409){ui.fs='';alert('Dữ liệu quỹ vừa được người khác cập nhật nên thay đổi của bạn CHƯA được lưu. Trang đã tải lại bản mới nhất, hãy kiểm tra rồi nhập lại.');await pullFund();return}
+  if(r.status==403){ui.adm=false;ui.role='';ui.pw='';try{sessionStorage.removeItem(PWK)}catch(e){}ui.fs='';alert('Phiên đăng nhập không còn hợp lệ, thay đổi CHƯA được lưu. Hãy đăng nhập lại.');await pullFund();return}
+  if(!r.ok)throw 0;const j=await r.json();F.rev=j.rev;ui.fs='Đã lưu';render()}).catch(()=>{ui.fs='Lỗi lưu';render()})};
+const FCAT={thu:[['quy','Thu quỹ hội'],['taitro','Thu tài trợ'],['thukhac','Thu khác']],chi:[['san','Chi đặt sân'],['giai','Chi hỗ trợ giải đấu'],['dungcu','Chi dụng cụ (bóng, lưới…)'],['nuoc','Chi nước uống / ăn uống'],['chikhac','Chi khác']]};
+const fcl=(t,k)=>(FCAT[t]||[]).find(x=>x[0]==k)?.[1]||k||'Khác';
+const nf=new Intl.NumberFormat('vi-VN'),vnd=n=>nf.format(Math.round(n));
+const ymShift=(ym,k)=>{const [y,m]=ym.split('-').map(Number),d=new Date(y,m-1+k,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const tdl=()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+const newFd=(type,date)=>({type,date:date||tdl(),cat:FCAT[type][0][0],amt:'',note:'',who:''});
+const parseAmt=v=>{let s=String(v||'').trim().toLowerCase().replace(/[đ₫\s]/g,''),mul=1;if(/tr(iệu)?$/.test(s)){mul=1e6;s=s.replace(/tr(iệu)?$/,'')}else if(/k$/.test(s)){mul=1e3;s=s.slice(0,-1)}
+ s=mul>1?s.replace(',','.'):s.replace(/[.,]/g,'');if(!/^\d+(\.\d+)?$/.test(s))return NaN;return Math.round(Number(s)*mul)};
+const fOpen=()=>F.open||{ym:[...F.tx.map(t=>t.date.slice(0,7)),curMonth()].sort()[0],amt:0,virt:true};
+function fCalc(ym){const o=fOpen(),net=a=>a.reduce((n,t)=>n+(t.type=='thu'?t.amt:-t.amt),0),valid=ym>=o.ym;
+ const rows=F.tx.filter(t=>t.date.slice(0,7)==ym).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.ts||0)-(b.ts||0));
+ const open=valid?o.amt+net(F.tx.filter(t=>{const m=t.date.slice(0,7);return m>=o.ym&&m<ym})):null;
+ const thu=rows.filter(t=>t.type=='thu').reduce((n,t)=>n+t.amt,0),chi=rows.filter(t=>t.type=='chi').reduce((n,t)=>n+t.amt,0);
+ return{o,valid,open,thu,chi,close:valid?open+thu-chi:null,rows}}
+function fread(){const g=(i,d)=>{const x=document.getElementById(i);return x?x.value:d},D=ui.fd||newFd('thu');ui.fd={...D,date:g('fd-date',D.date)||D.date,cat:g('fd-cat',D.cat),amt:g('fd-amt',D.amt),note:g('fd-note',D.note),who:g('fd-who',D.who)}}
+function fcsv(){const c=fCalc(ui.fm),q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';let bal=c.open;
+ const L=[['Ngày','Loại','Khoản mục','Nội dung','Người nộp/nhận','Số tiền','Số dư sau']];
+ if(c.valid)L.push(['','','Số dư đầu kỳ','','','',c.open]);
+ c.rows.forEach(t=>{const v=t.type=='thu'?t.amt:-t.amt;if(c.valid)bal+=v;L.push([fmt(t.date),t.type=='thu'?'Thu':'Chi',fcl(t.type,t.cat),t.note||'',t.who||'',v,c.valid?bal:''])});
+ if(c.valid)L.push(['','','Số dư cuối kỳ','','','',c.close]);
+ const blob=new Blob(['﻿'+L.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='thu-chi-'+ui.fm+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function fAct(a,d){
+ if(a=='f_mo'){ui.fm=ymShift(ui.fm,+d.v);if(ui.fm>curMonth())ui.fm=curMonth();ui.fa=null;render();return}
+ if(a=='f_csv'){fcsv();return}
+ if(FRO())return;
+ if(a=='f_type'){fread();ui.fd.type=d.v;ui.fd.cat=FCAT[d.v][0][0];ui.ferr='';render();return}
+ if(a=='f_cancel'){ui.fe=null;ui.fd=newFd(ui.fd?ui.fd.type:'thu');ui.ferr='';render();return}
+ if(a=='f_retry'){fsave();return}
+ if(a=='f_edit'){fread();const t=F.tx.find(x=>String(x.id)==d.id);if(t){ui.fe=t.id;ui.fd={type:t.type,date:t.date,cat:t.cat,amt:String(t.amt),note:t.note||'',who:t.who||''};ui.ferr=''}render();document.getElementById('fform')?.scrollIntoView({behavior:'smooth',block:'center'});return}
+ if(a=='f_del'){if(ui.fa==d.id){F.tx=F.tx.filter(x=>String(x.id)!=d.id);ui.fa=null;if(ui.fe==d.id)ui.fe=null;fsave()}else{ui.fa=d.id;render()}return}
+ if(a=='f_open'){const ym=(document.getElementById('fo-ym').value||'').trim(),amt=parseAmt(document.getElementById('fo-amt').value||'0');
+  if(!/^\d{4}-\d{2}$/.test(ym)||!Number.isFinite(amt)){alert('Nhập tháng dạng YYYY-MM và số dư hợp lệ.');return}F.open={ym,amt};ui.fm=ym>curMonth()?curMonth():ym;fsave();return}
+ if(a=='f_add'){fread();const D=ui.fd,amt=parseAmt(D.amt);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(D.date))ui.ferr='Chọn ngày.';else if(D.date.slice(0,7)>curMonth())ui.ferr='Không nhập khoản thuộc tháng chưa đến.';else if(!Number.isFinite(amt)||amt<=0)ui.ferr='Nhập số tiền hợp lệ (ví dụ 300000, 300k hoặc 1.5tr).';
+  else{ui.ferr='';const rec={date:D.date,type:D.type,cat:D.cat,amt,note:D.note.trim(),who:D.who.trim()};
+   if(ui.fe){const i=F.tx.findIndex(x=>x.id==ui.fe);if(i>=0)F.tx[i]={...F.tx[i],...rec,upd:Date.now()}}else F.tx.push({id:'t'+Date.now(),ts:Date.now(),...rec});
+   ui.fe=null;ui.fm=D.date.slice(0,7);ui.fd=newFd(D.type,D.date);fsave();return}
+  render()}}
+const FI={wallet:'<path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',up:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',down:'<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',bank:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>'};
+function fund(){if(!ui.fd)ui.fd=newFd('thu');
+ const ym=ui.fm,c=fCalc(ym),ed=!FRO(),[y,mo]=ym.split('-'),D=ui.fd;let bal=c.open;
+ const ic=k=>`<svg viewBox="0 0 24 24" aria-hidden="true">${FI[k]}</svg>`;
+ const tile=(cl,i,v,l,sub)=>`<div class="kpi ${cl}"><span class=ki>${ic(i)}</span><div><span class=big>${v}</span><span class=kl>${l}</span>${sub?`<span class=ks>${sub}</span>`:''}</div></div>`;
+ const nT=c.rows.filter(t=>t.type=='thu').length,nC=c.rows.length-nT;
+ const row=t=>{if(c.valid)bal+=t.type=='thu'?t.amt:-t.amt;const id=esc(String(t.id));
+  return `<tr><td style="white-space:nowrap;vertical-align:top">${fmt(t.date).slice(0,5)}</td><td style="min-width:130px"><span class="chip cat ${t.type}" style="white-space:nowrap">${esc(fcl(t.type,t.cat))}</span><div>${esc(t.note||'')}</div>${t.who?`<div class=mute style="font-size:12px">${esc(t.who)}</div>`:''}${ed?`<div style="margin-top:6px;display:flex;gap:6px"><button class="b alt" style="padding:3px 10px" data-act=f_edit data-id="${id}" aria-label="Sửa">✎ Sửa</button><button class="b ${ui.fa==t.id?'red':'alt'}" style="padding:3px 10px" data-act=f_del data-id="${id}" aria-label="Xoá khoản này">${ui.fa==t.id?'Bấm lại để xoá':'✕ Xoá'}</button></div>`:''}</td><td class="n ${t.type=='thu'?'pos':'neg'}" style="vertical-align:top"><b>${t.type=='thu'?'+':'−'}${vnd(t.amt)}</b></td>${c.valid?`<td class="n mute" style="vertical-align:top">${vnd(bal)}</td>`:''}</tr>`};
+ const brk=type=>{const tot=type=='thu'?c.thu:c.chi,items=FCAT[type].map(([k,l])=>({l,v:c.rows.filter(t=>t.type==type&&t.cat==k).reduce((n,t)=>n+t.amt,0)})),known=items.reduce((n,x)=>n+x.v,0);if(tot-known>0)items.push({l:'Khác',v:tot-known});
+  return `<div class=card><h3>${type=='thu'?'Thu theo khoản mục':'Chi theo khoản mục'}</h3>${items.map(x=>{const pc=tot?Math.round(100*x.v/tot):0;return `<div class="fb ${type}"><div class=row style="flex-wrap:nowrap"><span style="flex:1">${esc(x.l)}</span><b>${vnd(x.v)}</b><span class=mute style="width:40px;text-align:right">${pc}%</span></div><div class=bar><i style="width:${pc}%"></i></div></div>`}).join('')}</div>`};
+ const o=c.o;
+ const form=ed?`<div class=card id=fform><div class=row><h3 style="margin:0;flex:1">${ui.fe?'Sửa khoản':'Thêm khoản thu / chi'}</h3><span class="seg"><button class="${D.type=='thu'?'on thu':''}" data-act=f_type data-v=thu>Thu</button><button class="${D.type=='chi'?'on chi':''}" data-act=f_type data-v=chi>Chi</button></span></div>
+  <div class=ff><label>Ngày<input class=fi id=fd-date type=date value="${esc(D.date)}" max="${tdl()}"></label><label>Khoản mục<select class=fi id=fd-cat>${FCAT[D.type].map(([k,l])=>`<option value=${k} ${D.cat==k?'selected':''}>${l}</option>`).join('')}</select></label><label>Số tiền (₫)<input class=fi id=fd-amt inputmode=numeric placeholder="VD: 300k" value="${esc(D.amt)}"></label>
+  <label>Nội dung<input class=fi id=fd-note placeholder="${D.type=='thu'?'VD: Quỹ tháng 10':'VD: Thuê sân 5h-7h'}" value="${esc(D.note)}"></label><label>${D.type=='thu'?'Người nộp / nhà tài trợ':'Người nhận / đơn vị'} (tuỳ chọn)<input class=fi id=fd-who value="${esc(D.who)}"></label></div>
+  ${ui.ferr?`<div class="neg mt">${esc(ui.ferr)}</div>`:''}<div class="row mt"><button class=b data-act=f_add>${ui.fe?'Lưu thay đổi':'Thêm khoản '+(D.type=='thu'?'thu':'chi')}</button>${ui.fe?'<button class="b alt" data-act=f_cancel>Huỷ sửa</button>':''}${ui.fs=='Lỗi lưu'?'<button class="b red" data-act=f_retry>Thử lưu lại</button>':''}<span class="fst ${ui.fs=='Lỗi lưu'?'err':''}">${esc(ui.fs)}</span></div></div>
+  <details class=card><summary>Thiết lập số dư đầu kỳ</summary><div class=ff><label>Tháng bắt đầu theo dõi<input class=fi id=fo-ym type=month value="${esc(o.ym)}" placeholder="YYYY-MM"></label><label>Số dư đầu kỳ của tháng đó (₫)<input class=fi id=fo-amt inputmode=numeric value="${o.amt}"></label></div><div class="mute mt">Các tháng sau tự động lấy số dư cuối kỳ của tháng trước làm số dư đầu kỳ. ${F.open?'':'<b>Chưa thiết lập: đang tính từ 0.</b>'}</div><div class="row mt"><button class=b data-act=f_open>Lưu thiết lập</button></div></details>`:`<div class="card mute">Chỉ thủ quỹ được nhập liệu. Thủ quỹ bấm <b>Đăng nhập</b> ở góc phải trên để thêm khoản thu/chi.</div>`;
+ return `<div class=mh><h2>Thu / Chi quỹ team</h2><button class="b alt" data-act=f_mo data-v=-1 aria-label="Tháng trước">‹</button><span class=mo>Tháng ${+mo}/${y}</span><button class="b alt" data-act=f_mo data-v=1 aria-label="Tháng sau" ${ym>=curMonth()?'disabled':''}>›</button></div>
+ <div class="kpis money">${tile('kf1','wallet',c.valid?vnd(c.open):'—','Số dư đầu kỳ',c.valid?(o.virt?'chưa thiết lập':''):'trước kỳ theo dõi ('+o.ym.split('-').reverse().join('/')+')')}${tile('kf2','up','+'+vnd(c.thu),'Tổng thu',nT+' khoản')}${tile('kf3','down','−'+vnd(c.chi),'Tổng chi',nC+' khoản')}${tile('kf4','bank',c.valid?vnd(c.close):'—','Số dư cuối kỳ',c.valid?(c.thu-c.chi>=0?'▲ +':'▼ −')+vnd(Math.abs(c.thu-c.chi))+' so với đầu kỳ':'')}</div>
+ ${form}
+ <div class=grid>${brk('thu')}${brk('chi')}</div>
+ <div class=card><div class=row><h3 style="margin:0;flex:1">Sổ thu/chi tháng ${+mo}/${y}</h3><button class="b alt" data-act=f_csv>⬇ Xuất Excel (CSV)</button></div>
+ <div style="overflow-x:auto"><table class=tbl><tr><th>Ngày</th><th>Khoản mục / nội dung</th><th class=n>Số tiền</th>${c.valid?'<th class=n>Số dư sau</th>':''}</tr>
+ ${c.valid?`<tr class=lead><td colspan=3><b>Số dư đầu kỳ</b></td><td class=n><b>${vnd(c.open)}</b></td></tr>`:''}
+ ${c.rows.map(row).join('')||`<tr><td colspan=${3+(c.valid?1:0)} class=mute>Chưa có khoản thu/chi nào trong tháng này.</td></tr>`}
+ ${c.valid?`<tr class=lead><td colspan=3><b>Số dư cuối kỳ</b></td><td class=n><b>${vnd(c.close)}</b></td></tr>`:''}</table></div></div>`}
 function mem(R){const M=S.members,sel=ui.mem&&M.find(m=>m.id==ui.mem),L=[...M].sort((a,b)=>R[b.id].d-R[a.id].d);
  const det=sel?(()=>{const x=R[sel.id],H=[...x.h].reverse(),mm=MM(),tn=S.events.filter(e=>e.kind=='tap'&&e.status!='upcoming'&&e.players.includes(sel.id)),bs=k=>tn.filter(e=>(e.session||'sang')==k).length;return `<div class=card><div class=row><h2 style="margin:0;flex:1" class="${sel.g=='F'?'f':'m'}">${esc(sel.name)}</h2><button class="b alt" data-act=closem>Đóng</button></div><div class=mute>${sel.g=='F'?'Nữ':'Nam'} · Hội đồng chấm ${sel.tier} · Điểm ban đầu ${f2(sel.init)}</div><div class=mute>Tập luyện: <b>${tn.length}</b> buổi${tn.length?` (sáng ${bs('sang')} · chiều ${bs('chieu')} · tối ${bs('toi')})`:''}</div><div class=score><div><span class=big>${f2(x.d)}</span><br><span>Trình đôi (${tierOf(sel.g,x.d)})</span></div><div><span class=big>${f2(x.s)}</span><br><span>Trình đơn (${tierOf(sel.g,x.s)})</span></div><div><span class=big>${pct(x.w,x.gp)}</span><br><span>${x.w}/${x.gp} trận thắng</span></div></div><h3>Lịch sử thi đấu</h3>${H.map(h=>`<div class=match style="grid-template-columns:auto 1fr auto"><span>${fmt(h.date)}</span><span>${esc(h.en)}: ${h.txt?esc(h.txt):`${h.dbl?'cùng '+nm(h.with,mm)+' · ':''}gặp ${nm(h.op,mm)}`}</span><b class="${h.win?'pos':'neg'}">${h.a}–${h.b} (${h.d>0?'+':''}${h.d.toFixed(3)})</b></div>`).join('')||'<div class=mute>Chưa có trận nào.</div>'}</div>`})():'';
  return `<h2>Thành viên (${M.length})</h2>${det}<div class=card><h3>Thêm thành viên mới</h3><div class=row><input id=mn placeholder="Tên"><select id=mg><option value=F>Nữ</option><option value=M>Nam</option></select><select id=mt>${TIERS.map(t=>`<option${t=='B'?' selected':''}>${t}</option>`).join('')}</select><button class=b data-act=addmem>Thêm</button></div><div class="mute mt">Nhóm trình do Hội đồng chấm; điểm ban đầu = trung bình mốc của nhóm theo giới.</div>${ui.err?`<div class="neg mt">${ui.err}</div>`:''}</div>
  <div class=card style="overflow-x:auto"><table><tr><th>Tên</th><th>Nhóm</th><th class=n>Trận</th><th class=n>Thắng%</th><th class=n>Đôi</th><th class=n>Đơn</th></tr>${L.map(m=>{const x=R[m.id];return `<tr class=cl data-act=mem data-id="${m.id}"><td class="${m.g=='F'?'f':'m'}">${esc(m.name)}</td><td>${chip(m.g,x.d)}</td><td class=n>${x.gp}</td><td class=n>${pct(x.w,x.gp)}</td><td class=n>${f2(x.d)}</td><td class=n>${f2(x.s)}</td></tr>`}).join('')}</table></div>`}
-function render(){const R=calc(),t=ui.tab,tabs=[['tong','Tổng quan'],['mini','Mini Game'],['giai','Giải đấu'],['tap','Tập luyện'],['tv','Thành viên'],['qa','Hỏi/Đáp']];
- $('#app').innerHTML=`<div class=hero><div class=wrap><div class=top><img src="${LOGO}" alt="Logo"><div><h1>${esc(S.team.name)}</h1><small>Quản lý thành viên · mini game · giải đấu · chấm trình</small></div>${ui.api?`<div style="margin-left:auto;text-align:right">${ui.adm?`<button class="b lime" data-act=logout>Thoát quản trị</button><div><small>${ui.sync||''}</small></div>`:'<button class="b alt" style="color:#fff;border-color:#fff6" data-act=login>Quản trị</button>'}</div>`:''}</div><nav>${tabs.map(([k,v])=>`<button class="${t==k?'on':''}" data-act=tab data-v=${k}>${v}</button>`).join('')}</nav></div></div><main>${ui.off?'<div class="card neg"><b>Chưa kết nối máy chủ dữ liệu.</b> Dữ liệu nhập ở đây chỉ lưu trên trình duyệt máy này, người khác sẽ không thấy. Mở đường dẫn /api/state trên site để kiểm tra hàm lưu dữ liệu (xem HUONG-DAN.md).</div>':''}${ui.nosave?'<div class="card neg">Trình duyệt đang chặn lưu dữ liệu: tải lại trang sẽ mất hết. Hãy xuất JSON ở tab Tổng quan thường xuyên.</div>':''}${t=='tong'?tong(R):t=='tv'?mem(R):t=='qa'?qa():evs(R,t)}</main>`;if(RO()){document.querySelectorAll('#app input,#app select').forEach(x=>x.disabled=true);document.querySelectorAll('#app [data-act]').forEach(x=>{if(!['tab','mem','ev','back','closem','exp','login','bx','mo'].includes(x.dataset.act))x.remove()})}}
+function render(){const R=calc(),t=ui.tab,tabs=[['tong','Tổng quan'],['mini','Mini Game'],['giai','Giải đấu'],['tap','Tập luyện'],['tv','Thành viên'],['fund','Thu/Chi'],['qa','Hỏi/Đáp']];
+ $('#app').innerHTML=`<div class=hero><div class=wrap><div class=top><img src="${LOGO}" alt="Logo"><div><h1>${esc(S.team.name)}</h1><small>Quản lý thành viên · mini game · giải đấu · chấm trình</small></div>${ui.api?`<div style="margin-left:auto;text-align:right">${ui.role?`<button class="b lime" data-act=logout>${ui.adm?'Thoát quản trị':'Thoát thủ quỹ'}</button><div><small>${ui.sync||''}</small></div>`:'<button class="b alt" style="color:#fff;border-color:#fff6" data-act=login>Đăng nhập</button>'}</div>`:''}</div><nav>${tabs.map(([k,v])=>`<button class="${t==k?'on':''}" data-act=tab data-v=${k}>${v}</button>`).join('')}</nav></div></div><main>${ui.off?'<div class="card neg"><b>Chưa kết nối máy chủ dữ liệu.</b> Dữ liệu nhập ở đây chỉ lưu trên trình duyệt máy này, người khác sẽ không thấy. Mở đường dẫn /api/state trên site để kiểm tra hàm lưu dữ liệu (xem HUONG-DAN.md).</div>':''}${ui.nosave?'<div class="card neg">Trình duyệt đang chặn lưu dữ liệu: tải lại trang sẽ mất hết. Hãy xuất JSON ở tab Tổng quan thường xuyên.</div>':''}${t=='tong'?tong(R):t=='tv'?mem(R):t=='qa'?qa():t=='fund'?fund():evs(R,t)}</main>`;if(RO()){document.querySelectorAll('#app input:not(.fi),#app select:not(.fi)').forEach(x=>x.disabled=true);document.querySelectorAll('#app [data-act]').forEach(x=>{if(!['tab','mem','ev','back','closem','exp','login','logout','bx','mo'].includes(x.dataset.act)&&!x.dataset.act.startsWith('f_'))x.remove()})}}
 const draftNew=k=>({session:nowSes(),name:'',date:today(),type:Object.keys(TYPES[k])[0],sel:[],teams:[{name:'Team A',players:[]},{name:'Team B',players:[]}],games:['dm','df','mx']});
 function gen(e){const ids=e.players;try{const prev=e.rounds.map(r=>({byes:r.byes,matches:r.matches}));const g=PBEngine.generateRound(ids,prev);
  e.rounds.push({n:e.rounds.length+1,byes:g.byes,matches:g.matches.map(m=>({pairA:m.pairA,pairB:m.pairB,sa:null,sb:null}))})}catch(x){ui.err=x.message}}
 document.addEventListener('click',ev=>{const b=ev.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,d=b.dataset,e=S.events.find(x=>x.id==ui.ev);ui.err='';
  if(a=='login'){showLogin();return}
+ if(a.startsWith('f_')){fAct(a,d);return}
  if(a=='mo'){const [y,mo]=ui.mo.split('-').map(Number),dt=new Date(y,mo-1+(+d.v),1);ui.mo=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');render();return}
  if(a=='bx'){ui.bx[d.g]=!ui.bx[d.g];render();return}
- if(a=='logout'){ui.adm=false;ui.pw='';ui.sync='';try{sessionStorage.removeItem(PWK)}catch(e){}pull();return}
+ if(a=='logout'){ui.adm=false;ui.role='';ui.pw='';ui.sync='';try{sessionStorage.removeItem(PWK)}catch(e){}pull();return}
  if(RO()&&!['tab','mem','ev','back','closem','exp'].includes(a))return;
  if(a!='delev')ui.armed=null;
  if(a=='tab'){ui.tab=d.v;ui.ev=null;ui.mem=null;ui.draft=null}
@@ -559,5 +646,5 @@ document.addEventListener('change',ev=>{const t=ev.target,c=t.dataset.ch;if(!c||
  else if(c=='gp'){const m=e.rounds[+t.dataset.r].matches[+t.dataset.m],p=t.dataset.side=='a'?m.pairA:m.pairB;if(!t.value||![...m.pairA,...m.pairB].includes(t.value))p[+t.dataset.k]=t.value;if(e.status=='upcoming')e.status='live'}
  else if(c=='sc'){const m=e.rounds[+t.dataset.r].matches[+t.dataset.m];m[t.dataset.s]=t.value===''?null:Math.max(0,Math.min(99,+t.value));if(e.status=='upcoming')e.status='live'}
  save();render()});
-save();render();pull().then(async()=>{let p='';try{p=sessionStorage.getItem(PWK)||''}catch(e){}if(p&&ui.api){if(await chk(p)=='ok')await enter(p);else{try{sessionStorage.removeItem(PWK)}catch(e){}}}});setInterval(()=>{if(RO())pull()},60000);
+save();render();pull().then(()=>pullFund()).then(async()=>{let p='';try{p=sessionStorage.getItem(PWK)||''}catch(e){}if(p&&ui.api){const rl=await chk(p);if(rl=='admin'||rl=='treasurer')await enter(p,rl);else{try{sessionStorage.removeItem(PWK)}catch(e){}}}});setInterval(()=>{if(ui.api&&!ui.role)pull().then(()=>pullFund())},60000);
 </script></body></html>
