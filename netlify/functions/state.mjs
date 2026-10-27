@@ -19,8 +19,10 @@ export default async (req) => {
   if (req.method === "GET") {
     // Kiểm tra mật khẩu khi đăng nhập
     if (url.searchParams.has("check")) {
-      if (configured && !okPw) await wait(800); // làm chậm dò mật khẩu
-      return Response.json({ configured, ok: okPw }, { headers: NS });
+      if (configured && !okPw) await wait(800); // làm chậm dò mật khẩu (kể cả khi là thủ quỹ, chỉ chậm thêm chút)
+      const tp = (Netlify.env.get("TREASURER_PASSWORD") || "").trim();
+      const okT = !okPw && tp.length > 0 && given.length > 0 && same(given, tp);
+      return Response.json({ configured, ok: okPw || okT, role: okPw ? "admin" : okT ? "treasurer" : null }, { headers: NS });
     }
     const d = await store.get("state", { type: "json" });
     return Response.json(d || null, { headers: NS });
