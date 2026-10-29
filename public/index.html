@@ -143,7 +143,7 @@ details.card summary{cursor:pointer;font-weight:700}
    * @param rng        hàm random [0,1) (mặc định Math.random) để test có seed
    * @returns {byes:[id], pairs:[[a,b]], matches:[{pairA,pairB}], cost}
    */
-  function generateRound(playerIds, prevRounds, rng) {
+  function exactRound(playerIds, prevRounds, rng) {
     rng = rng || Math.random;
     var n = playerIds.length;
     if (n < 4) throw new Error('Cần ít nhất 4 người chơi');
@@ -191,7 +191,112 @@ details.card summary{cursor:pointer;font-weight:700}
     return { byes: best.byes.slice(), pairs: pairs, matches: matches, cost: bestCost };
   }
 
+
+  // ---------- Số người lớn: tìm kiếm vét cạn quá chậm nên dùng heuristic; số người nhỏ vẫn vét cạn như cũ ----------
+  function dfact(m) { var r = 1; for (var i = m - 1; i > 1; i -= 2) r *= i; return r; }
+  function nCk(n, k) { var r = 1; for (var i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
+
+  function generateRound(playerIds, prevRounds, rng) {
+    rng = rng || Math.random;
+    var n = playerIds.length;
+    if (n < 4) throw new Error('Cần ít nhất 4 người chơi');
+    var b = byesPerRound(n);
+    if (nCk(n, b) * dfact(n - b) <= 1.2e6) return exactRound(playerIds, prevRounds, rng);
+    return heuristicRound(playerIds, prevRounds || [], rng);
+  }
+
+  function byeCostOf(h, id) { return W.BYE_COUNT * h.byes[id] + (h.lastBye[id] ? W.BYE_CONSECUTIVE : 0); }
+  function pickByes(ids, k, h, rng) {
+    if (k <= 0) return [];
+    var s = shuffle(ids, rng).map(function (id) { return { id: id, c: byeCostOf(h, id) }; });
+    s.sort(function (a, b) { return a.c - b.c; });
+    return s.slice(0, k).map(function (x) { return x.id; });
+  }
+  function pcost(h, x, y) {
+    var k = key(x, y), c = h.partner[k] || 0;
+    return W.PARTNER_REPEAT * c * c + (h.lastPartner[k] ? W.PARTNER_LAST_ROUND : 0);
+  }
+
+  /** Ghép cặp bằng nhiều lần khởi tạo ngẫu nhiên + hoán đổi cục bộ (đủ tốt, rất nhanh). */
+  function heuristicRound(playerIds, prev, rng) {
+    var h = buildHistory(playerIds, prev);
+    var byes = pickByes(playerIds, byesPerRound(playerIds.length), h, rng);
+    var active = playerIds.filter(function (id) { return byes.indexOf(id) < 0; });
+    var best = null, bc = Infinity;
+    for (var r = 0; r < 80 && bc > 0; r++) {
+      var a = shuffle(active, rng), pairs = [];
+      for (var i = 0; i < a.length; i += 2) pairs.push([a[i], a[i + 1]]);
+      var improved = true, guard = 0;
+      while (improved && guard++ < 50) {
+        improved = false;
+        for (var x = 0; x < pairs.length; x++) for (var y = x + 1; y < pairs.length; y++) {
+          var a1 = pairs[x][0], b1 = pairs[x][1], a2 = pairs[y][0], b2 = pairs[y][1];
+          var cur = pcost(h, a1, b1) + pcost(h, a2, b2), o1 = pcost(h, a1, a2) + pcost(h, b1, b2), o2 = pcost(h, a1, b2) + pcost(h, b1, a2);
+          if (o1 < cur && o1 <= o2) { pairs[x] = [a1, a2]; pairs[y] = [b1, b2]; improved = true; }
+          else if (o2 < cur) { pairs[x] = [a1, b2]; pairs[y] = [b1, a2]; improved = true; }
+        }
+      }
+      var cost = 0; pairs.forEach(function (p) { cost += pcost(h, p[0], p[1]); });
+      if (cost < bc) { bc = cost; best = pairs.map(function (p) { return p.slice(); }); }
+    }
+    var pairsS = shuffle(best, rng);
+    return { byes: byes, pairs: pairsS, matches: arrangeMatches(pairsS, h, rng), cost: bc };
+  }
+
+  /** Thuật toán Hungarian (ghép cặp tối ưu chi phí, ma trận vuông). Trả về ans[i] = cột được gán cho hàng i. */
+  function hungarian(cost) {
+    var n = cost.length, INF = 1e18, u = [], v = [], p = [], way = [], i, j;
+    for (i = 0; i <= n; i++) { u[i] = 0; v[i] = 0; p[i] = 0; way[i] = 0; }
+    for (i = 1; i <= n; i++) {
+      p[0] = i; var j0 = 0, minv = [], used = [];
+      for (j = 0; j <= n; j++) { minv[j] = INF; used[j] = false; }
+      do {
+        used[j0] = true; var i0 = p[j0], delta = INF, j1 = 0;
+        for (j = 1; j <= n; j++) if (!used[j]) {
+          var cur = cost[i0 - 1][j - 1] - u[i0] - v[j];
+          if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+          if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+        }
+        for (j = 0; j <= n; j++) { if (used[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta; }
+        j0 = j1;
+      } while (p[j0] !== 0);
+      do { var jj = way[j0]; p[j0] = p[jj]; j0 = jj; } while (j0);
+    }
+    var ans = [];
+    for (j = 1; j <= n; j++) ans[p[j] - 1] = j - 1;
+    return ans;
+  }
+
+  /**
+   * Random Robin Đôi Nam Nữ: mỗi cặp gồm 1 nam + 1 nữ.
+   * Số cặp mỗi lượt = số chẵn lớn nhất không vượt quá min(số nam, số nữ); phần dư của giới đông hơn nghỉ lượt (xoay vòng công bằng).
+   * pairA/pairB = [nam, nữ].
+   */
+  function generateMixedRound(maleIds, femaleIds, prevRounds, rng) {
+    rng = rng || Math.random;
+    if (maleIds.length < 2 || femaleIds.length < 2) throw new Error('Random Nam Nữ cần ít nhất 2 nam và 2 nữ');
+    var h = buildHistory(maleIds.concat(femaleIds), prevRounds || []);
+    var p = Math.floor(Math.min(maleIds.length, femaleIds.length) / 2) * 2;
+    var byeM = pickByes(maleIds, maleIds.length - p, h, rng), byeF = pickByes(femaleIds, femaleIds.length - p, h, rng);
+    var am = shuffle(maleIds.filter(function (id) { return byeM.indexOf(id) < 0; }), rng);
+    var af = shuffle(femaleIds.filter(function (id) { return byeF.indexOf(id) < 0; }), rng);
+    var cost = am.map(function (m) { return af.map(function (f) { return pcost(h, m, f) + rng() * 0.5; }); });
+    var ans = hungarian(cost), pairs = [], total = 0;
+    am.forEach(function (m, i) { pairs.push([m, af[ans[i]]]); total += pcost(h, m, af[ans[i]]); });
+    var pairsS = shuffle(pairs, rng);
+    return { byes: byeM.concat(byeF), pairs: pairsS, matches: arrangeMatches(pairsS, h, rng), cost: total };
+  }
+
   function arrangeMatches(pairs, h, rng) {
+    if (pairs.length > 14) { // quá nhiều cặp để vét cạn
+      var sp = shuffle(pairs, rng), out = [];
+      for (var q = 0; q + 1 < sp.length; q += 2) out.push({ pairA: sp[q].slice(), pairB: sp[q + 1].slice() });
+      return out;
+    }
+    return arrangeMatchesExact(pairs, h, rng);
+  }
+
+  function arrangeMatchesExact(pairs, h, rng) {
     function oppCost(p, q) {
       var c = 0;
       p.forEach(function (a) { q.forEach(function (b) { c += (h.opp[key(a, b)] || 0) * W.OPPONENT_REPEAT; }); });
@@ -350,7 +455,7 @@ details.card summary{cursor:pointer;font-weight:700}
   return {
     W: W, byesPerRound: byesPerRound, buildHistory: buildHistory, generateRound: generateRound,
     computeStandings: computeStandings, partnerHistory: partnerHistory, validateState: validateState,
-    completedMatches: completedMatches, mulberry32: mulberry32
+    completedMatches: completedMatches, mulberry32: mulberry32, generateMixedRound: generateMixedRound
   };
 });
 </script>
@@ -365,7 +470,7 @@ const LB={M:{S:2.7,A:2.5,B:2.3,C:2.1,D:1.9},F:{S:2.45,A:2.25,B:2.05,C:1.85,D:1.6
 const LIMX={M:[],F:[]};['M','F'].forEach(g=>'SABCD'.split('').forEach(t=>{const l=LB[g][t];LIMX[g].push([l+2*W,t+'+'],[l+W,t],[l,t+'-'])}));
 const initOf=(g,t)=>Math.round((TI[g][t[0]]+(t[1]=='+'?W:t[1]=='-'?-W:0))*1000)/1000;
 const tierOf=(g,r)=>(LIMX[g].find(x=>r>=x[0]-1e-9)||[0,'D-'])[1];
-const TYPES={mini:{rrF:'Random Robin – Đôi nữ',rrM:'Random Robin – Đôi nam',fix:'Cặp cố định (nam nữ / nam / nữ)',mixd:'Đánh đôi hỗn hợp',single:'Đánh đơn'},giai:{team:'Đánh Team',tsingle:'Đánh Đơn',tdouble:'Đánh Đôi',mix:'Hình thức hỗn hợp'}};
+const TYPES={mini:{rrF:'Random Robin – Đôi nữ',rrM:'Random Robin – Đôi nam',rrX:'Random Robin – Đôi nam nữ',fix:'Cặp cố định (nam nữ / nam / nữ)',mixd:'Đánh đôi hỗn hợp',single:'Đánh đơn'},giai:{team:'Đánh Team',tsingle:'Đánh Đơn',tdouble:'Đánh Đôi',mix:'Hình thức hỗn hợp'}};
 TYPES.tap=TYPES.mini;
 const KTR=0.03; /* hệ số K buổi tập luyện (mini game / giải đấu: 0.06) */
 const SO={sang:0,chieu:1,toi:2},SES={sang:{l:'Buổi sáng',s:'sáng',p:'<path d="M17 18a5 5 0 0 0-10 0"/><path d="M12 2v7"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/>'},chieu:{l:'Buổi chiều',s:'chiều',p:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'},toi:{l:'Buổi tối',s:'tối',p:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'}};
@@ -479,7 +584,7 @@ function teamRank(e){const T=teamSort(e),pl=T.some(x=>x.gw||x.gl);
  return `<div class=card><h3>Xếp hạng Team</h3><table><tr><th>#</th><th>Team</th><th class=n>Thắng cặp</th><th class=n>Game</th><th class=n>Hiệu số</th></tr>${T.map((x,i)=>`<tr class="${i==0&&pl?'lead':''}"><td>${medal(i,pl)}</td><td><b>${esc(x.n)}</b></td><td class=n>${x.tw}</td><td class=n>${x.gw}-${x.gl}</td><td class=n>${x.pf>0?'+':''}${x.pf}</td></tr>`).join('')}</table></div>`}
 function form0(kind){const d=ui.draft,T=TYPES[kind],gF=d.type=='rrF'?'F':d.type=='rrM'?'M':null,L=S.members.filter(m=>!gF||m.g==gF);
  return `<div class=card><h3>${kind=='mini'?'Mini game mới':kind=='tap'?'Buổi tập mới':'Giải đấu mới'}</h3><div class=row><input data-ch=dn placeholder="${kind=='tap'?'Tên (VD: Tập sáng 28/10)':'Tên (VD: Mini game 01/11)'}" value="${esc(d.name)}"><input type=date data-ch=dd value="${d.date}">${kind=='tap'?`<select data-ch=ds aria-label="Buổi tập">${Object.entries(SES).map(([k,v])=>`<option value=${k} ${d.session==k?'selected':''}>${v.l}</option>`).join('')}</select>`:''}<select data-ch=dt>${Object.entries(T).map(([k,v])=>`<option value=${k} ${d.type==k?'selected':''}>${v}</option>`).join('')}</select></div>
- <div class="row mt"><b>Người tham gia: ${d.sel.length}</b><button class="b alt" data-act=all>Chọn tất cả</button><button class="b alt" data-act=none>Bỏ chọn</button></div><div class="pick mt">${L.map(m=>`<label><input type=checkbox data-ch=pk value="${m.id}" ${d.sel.includes(m.id)?'checked':''}><span class="${m.g=='F'?'f':'m'}">${esc(m.name)}</span></label>`).join('')}</div>
+ <div class="row mt"><b>Người tham gia: ${d.sel.length}</b>${d.type=='rrX'?`<span class=mute>(Nam ${d.sel.filter(i=>MM()[i]&&MM()[i].g=='M').length} · Nữ ${d.sel.filter(i=>MM()[i]&&MM()[i].g=='F').length} — mỗi cặp 1 nam + 1 nữ)</span>`:''}<button class="b alt" data-act=all>Chọn tất cả</button><button class="b alt" data-act=none>Bỏ chọn</button></div><div class="pick mt">${L.map(m=>`<label><input type=checkbox data-ch=pk value="${m.id}" ${d.sel.includes(m.id)?'checked':''}><span class="${m.g=='F'?'f':'m'}">${esc(m.name)}</span></label>`).join('')}</div>
  <div class="row mt"><button class=b data-act=create data-k=${kind}>Tạo</button><button class="b alt" data-act=back>Huỷ</button></div>${ui.err?`<div class="neg mt">${ui.err}</div>`:''}</div>`}
 function evs(R,kind){if(ui.ev)return evDetail(R);if(ui.draft)return form(kind);
  const L=S.events.filter(e=>e.kind==kind).sort(evCmp);
@@ -521,6 +626,8 @@ function qa(){
  <div class="mute mt">Trong cùng một ngày, các hoạt động được tính theo thứ tự sáng, chiều, tối. Hồ sơ mỗi thành viên có thêm số buổi tập đã tham gia (chia theo sáng/chiều/tối); buổi tập "Sắp diễn ra" chưa được tính.</div></div>
  <div class=card><h3>9. "Δ trình" trong bảng xếp hạng giải là gì?</h3><p>Là tổng điểm trình người đó được cộng hoặc trừ trong riêng hoạt động đó. Số dương (màu xanh) là tăng, số âm là giảm.</p></div>
  <div class=card><h3>10. Tab Thu/Chi tính số dư thế nào?</h3><p><b>Số dư cuối kỳ = Số dư đầu kỳ + Tổng thu − Tổng chi</b> của tháng đang xem. Số dư đầu kỳ của tháng sau tự lấy từ số dư cuối kỳ của tháng trước. Riêng tháng bắt đầu theo dõi thì thủ quỹ nhập số dư đầu kỳ ở mục "Thiết lập số dư đầu kỳ".</p><ul><li>Khoản thu: thu quỹ hội, thu tài trợ, thu khác.</li><li>Khoản chi: đặt sân, hỗ trợ giải đấu, dụng cụ, nước uống/ăn uống, chi khác.</li><li>Mọi thành viên xem được sổ thu/chi; chỉ thủ quỹ (hoặc quản trị viên) đăng nhập mới thêm, sửa, xoá được.</li></ul></div>
+ <div class=card><h3>11. Random Robin: máy bắt cặp và chia trận thế nào?</h3><ul><li><b>Đôi Nữ, Đôi Nam:</b> chọn người cùng giới, mỗi lượt máy chia thành các trận đôi (4 người một trận). Người dư ra (số người không chia hết cho 4) nghỉ lượt.</li><li><b>Đôi Nam Nữ:</b> mỗi cặp luôn gồm <b>1 nam + 1 nữ</b>, mỗi trận là 2 cặp gặp nhau. Số cặp mỗi lượt là số chẵn lớn nhất không vượt quá số nam hoặc số nữ (bên nào ít hơn quyết định); phần dư của bên đông hơn nghỉ lượt.</li><li><b>Thứ tự ưu tiên khi random:</b> nghỉ lượt công bằng (ai nghỉ ít thì được xếp đánh trước, không nghỉ liên tiếp) → không lặp lại bạn cặp → hạn chế gặp lại cùng đối thủ → còn lại ngẫu nhiên.</li><li>Trận Random Robin chấm trình như trận đôi (mục 3).</li></ul></div>
+ 
  `}
 
 /* ===== Thu/Chi (quỹ team) ===== */
@@ -604,7 +711,7 @@ function mem(R){const M=S.members,sel=ui.mem&&M.find(m=>m.id==ui.mem),L=[...M].s
 function render(){const R=calc(),t=ui.tab,tabs=[['tong','Tổng quan'],['mini','Mini Game'],['giai','Giải đấu'],['tap','Tập luyện'],['tv','Thành viên'],['fund','Thu/Chi'],['qa','Hỏi/Đáp']];
  $('#app').innerHTML=`<div class=hero><div class=wrap><div class=top><img src="${LOGO}" alt="Logo"><div><h1>${esc(S.team.name)}</h1><small>Quản lý thành viên · mini game · giải đấu · chấm trình</small></div>${ui.api?`<div style="margin-left:auto;text-align:right">${ui.role?`<button class="b lime" data-act=logout>${ui.adm?'Thoát quản trị':'Thoát thủ quỹ'}</button><div><small>${ui.sync||''}</small></div>`:'<button class="b alt" style="color:#fff;border-color:#fff6" data-act=login>Đăng nhập</button>'}</div>`:''}</div><nav>${tabs.map(([k,v])=>`<button class="${t==k?'on':''}" data-act=tab data-v=${k}>${v}</button>`).join('')}</nav></div></div><main>${ui.off?'<div class="card neg"><b>Chưa kết nối máy chủ dữ liệu.</b> Dữ liệu nhập ở đây chỉ lưu trên trình duyệt máy này, người khác sẽ không thấy. Mở đường dẫn /api/state trên site để kiểm tra hàm lưu dữ liệu (xem HUONG-DAN.md).</div>':''}${ui.nosave?'<div class="card neg">Trình duyệt đang chặn lưu dữ liệu: tải lại trang sẽ mất hết. Hãy xuất JSON ở tab Tổng quan thường xuyên.</div>':''}${t=='tong'?tong(R):t=='tv'?mem(R):t=='qa'?qa():t=='fund'?fund():evs(R,t)}</main>`;if(RO()){document.querySelectorAll('#app input:not(.fi),#app select:not(.fi)').forEach(x=>x.disabled=true);document.querySelectorAll('#app [data-act]').forEach(x=>{if(!['tab','mem','ev','back','closem','exp','login','logout','bx','mo'].includes(x.dataset.act)&&!x.dataset.act.startsWith('f_'))x.remove()})}}
 const draftNew=k=>({session:nowSes(),name:'',date:today(),type:Object.keys(TYPES[k])[0],sel:[],teams:[{name:'Team A',players:[]},{name:'Team B',players:[]}],games:['dm','df','mx']});
-function gen(e){const ids=e.players;try{const prev=e.rounds.map(r=>({byes:r.byes,matches:r.matches}));const g=PBEngine.generateRound(ids,prev);
+function gen(e){const ids=e.players;try{const prev=e.rounds.map(r=>({byes:r.byes,matches:r.matches}));const MMx=MM();const g=e.type=='rrX'?PBEngine.generateMixedRound(ids.filter(i=>MMx[i]&&MMx[i].g=='M'),ids.filter(i=>MMx[i]&&MMx[i].g=='F'),prev):PBEngine.generateRound(ids,prev);
  e.rounds.push({n:e.rounds.length+1,byes:g.byes,matches:g.matches.map(m=>({pairA:m.pairA,pairB:m.pairB,sa:null,sb:null}))})}catch(x){ui.err=x.message}}
 document.addEventListener('click',ev=>{const b=ev.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,d=b.dataset,e=S.events.find(x=>x.id==ui.ev);ui.err='';
  if(a=='login'){showLogin();return}
@@ -621,7 +728,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('[data-act]');i
  else if(a=='new')ui.draft=draftNew(d.k)
  else if(a=='all'||a=='none'){const g=ui.draft.type=='rrF'?'F':ui.draft.type=='rrM'?'M':null;ui.draft.sel=a=='none'?[]:S.members.filter(m=>!g||m.g==g).map(m=>m.id)}
  else if(a=='create'&&ui.draft.type=='team'){const D=ui.draft,nm2=D.teams.map(t=>t.name.trim());if(!D.name.trim())ui.err='Nhập tên giải.';else if(D.teams.some(t=>t.players.length<2))ui.err='Mỗi Team cần ít nhất 2 thành viên.';else if(new Set(nm2).size<nm2.length||nm2.includes(''))ui.err='Tên Team phải khác nhau và không để trống.';else{const rounds=[];D.teams.forEach((A,i)=>D.teams.forEach((B,j)=>{if(j>i)rounds.push({n:rounds.length+1,tie:[i,j],byes:[],matches:D.games.map(f=>({fmt:f,pairA:SL[f].map(()=>''),pairB:SL[f].map(()=>''),sa:null,sb:null}))})}));const n={id:Date.now(),kind:d.k,name:D.name.trim(),date:D.date,type:'team',status:'upcoming',players:D.teams.flatMap(t=>t.players),teams:D.teams.map((t,i)=>({name:nm2[i],players:t.players})),games:D.games,rounds};S.events.push(n);ui.draft=null;ui.ev=n.id}}
- else if(a=='create'){const D=ui.draft;if(!D.name.trim())ui.err='Nhập tên hoạt động.';else if(D.sel.length<(D.type[0]=='r'?4:2))ui.err=D.type[0]=='r'?'Random Robin cần ít nhất 4 người.':'Chọn ít nhất 2 người.';
+ else if(a=='create'){const D=ui.draft;if(!D.name.trim())ui.err='Nhập tên hoạt động.';else if(D.type=='rrX'&&(D.sel.filter(i=>MM()[i]&&MM()[i].g=='M').length<2||D.sel.filter(i=>MM()[i]&&MM()[i].g=='F').length<2))ui.err='Random Robin Đôi Nam Nữ cần chọn ít nhất 2 nam và 2 nữ.';else if(D.sel.length<(D.type[0]=='r'?4:2))ui.err=D.type[0]=='r'?'Random Robin cần ít nhất 4 người.':'Chọn ít nhất 2 người.';
   else{const n={id:Date.now(),kind:d.k,...(d.k=='tap'?{session:D.session||'sang'}:{}),name:D.name.trim(),date:D.date,type:D.type,status:'upcoming',players:D.sel,rounds:D.type[0]=='r'?[]:[{n:1,byes:[],matches:[]}]};S.events.push(n);ui.draft=null;ui.ev=n.id}}
  else if(a=='st'){e.status=d.v}
  else if(a=='delev'){if(ui.armed==e.id){S.events=S.events.filter(x=>x!==e);ui.ev=null;ui.armed=null}else ui.armed=e.id}
